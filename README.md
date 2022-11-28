@@ -10,4 +10,4 @@
 
 # Development-Goal
 
-🖼️ Learn how ERC20 Crowdfunding works.
+👨‍👩‍👧‍👦 Learn how ERC20 Crowdfunding works.
