@@ -5,36 +5,35 @@ import "forge-std/Test.sol";
 import "../src/ERC20Maker.sol";
 
 contract ERC20MakerTest is Test {
-    ERC20Maker token1;
-    ERC20Maker token2;
+    ERC20Maker token;
 
-    address owner1 = address(0x1);
-    string name1 = "Token 1";
-    string symbol1 = "TOK1";
+    address owner = address(0x1);
+    string name = "Token";
+    string symbol = "TOK";
 
     function setUp() public {
-        vm.startPrank(owner1);
-        token1 = new ERC20Maker(name1, symbol1);
+        vm.startPrank(owner);
+        token = new ERC20Maker(name, symbol);
         vm.stopPrank();
     }
 
     function testNameOk() public {
-        assertEq(token1.name(), name1);
+        assertEq(token.name(), name);
     }
 
     function testSymbolOk() public {
-        assertEq(token1.symbol(), symbol1);
+        assertEq(token.symbol(), symbol);
     }
 
     function testDecimalsAre18() public {
-        assertEq(token1.decimals(), 18);
+        assertEq(token.decimals(), 18);
     }
 
     function testTotalSupplyIs100() public {
-        assertEq(token1.totalSupply(), 100 * 10**token1.decimals());
+        assertEq(token.totalSupply(), 100 * 10**token.decimals());
     }
 
     function testTotalSupplyInOwnerAccount() public {
-        assertEq(token1.balanceOf(owner1), token1.totalSupply());
+        assertEq(token.balanceOf(owner), token.totalSupply());
     }
 }
