@@ -1,6 +1,6 @@
 # Requirements for Crowdfund
 
-⭐ User creates a campaign.
+⭐ User can create a campaigns.
 
 💸 Users can pledge, transferring their token to a campaign.
 
