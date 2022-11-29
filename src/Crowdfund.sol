@@ -115,7 +115,8 @@ contract Crowdfund {
     function refund(uint256 _id) external {
         Campaign memory campaign = campaigns[_id];
         require(
-            campaign.startAt + campaign.duration < uint32(block.timestamp),
+            campaign.startAt != 0 &&
+                campaign.startAt + campaign.duration < uint32(block.timestamp),
             "Not ended."
         );
         require(

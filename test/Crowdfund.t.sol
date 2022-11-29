@@ -11,10 +11,10 @@ contract CrowdfundTest is Test {
     Crowdfund crowdfund;
 
     address creator = address(0x1);
-    address payable founder2 = payable(address(0x2));
-    address payable founder3 = payable(address(0x3));
+    address payable funder2 = payable(address(0x2));
+    address payable funder3 = payable(address(0x3));
     address payable tokenDeployer = payable(address(0x4));
-    uint256 goal = 90 * 10**18;
+    uint256 goal = 31 * 10**18;
     uint32 duration = 60 seconds;
     string name = "Token";
     string symbol = "TOK";
@@ -22,8 +22,8 @@ contract CrowdfundTest is Test {
     function setUp() public {
         vm.startPrank(tokenDeployer);
         token = new ERC20Maker(name, symbol);
-        token.transfer(founder2, 50 * 10**token.decimals());
-        token.transfer(founder3, 50 * 10**token.decimals());
+        token.transfer(funder2, 50 * 10**token.decimals());
+        token.transfer(funder3, 50 * 10**token.decimals());
         vm.stopPrank();
 
         vm.startPrank(creator);
@@ -32,41 +32,167 @@ contract CrowdfundTest is Test {
     }
 
     function testSetup() public {
-        assertEq(token.balanceOf(founder2), 50 * 10**token.decimals());
-        assertEq(token.balanceOf(founder3), 50 * 10**token.decimals());
+        assertEq(token.balanceOf(funder2), 50 * 10**token.decimals());
+        assertEq(token.balanceOf(funder3), 50 * 10**token.decimals());
     }
 
     function testStartOk() public {
         vm.startPrank(creator);
+        assertEq(crowdfund.count(), 0);
         crowdfund.start(goal, duration);
+        vm.stopPrank();
+
+        assertEq(crowdfund.count(), 1);
+        assertEq(crowdfund.getCampaignCreator(0), creator);
+        assertEq(crowdfund.getCampaignGoal(0), goal);
+        assertEq(crowdfund.getCampaignPledge(0), 0);
+        assertEq(crowdfund.getCampaignDuration(0), duration);
+        assertEq(crowdfund.getCampaignStartAt(0), uint32(block.timestamp));
+        assertEq(crowdfund.getCampaignClaimed(0), false);
+    }
+
+    function testPledgeNotStarted() public {
+        vm.startPrank(funder2);
+        vm.expectRevert("Not started.");
+        crowdfund.pledge(0, 30 * 10**18);
         vm.stopPrank();
     }
 
-    function testPledgeNotStarted() public {}
+    function testPledgeAlreadyEnded() public {
+        testStartOk();
+        vm.warp(block.timestamp + duration + 1);
+        vm.startPrank(funder2);
+        vm.expectRevert("Already ended.");
+        crowdfund.pledge(0, 30 * 10**18);
+        vm.stopPrank();
+    }
 
-    function testPledgeAlreadyEnded() public {}
+    function testPledgeOk() public {
+        testStartOk();
+        vm.startPrank(funder2);
+        token.approve(address(crowdfund), 30 * 10**18);
+        assertEq(token.balanceOf(funder2), 50 * 10**token.decimals());
+        crowdfund.pledge(0, 30 * 10**18);
+        assertEq(token.balanceOf(funder2), 20 * 10**token.decimals());
+        assertEq(crowdfund.getCampaignPledge(0), 30 * 10**18);
+        assertEq(crowdfund.getCampaignAddressPledge(0, funder2), 30 * 10**18);
+        vm.stopPrank();
+    }
 
-    function testPledgeOk() public {}
+    function testUnpledgeNotStarted() public {
+        vm.startPrank(funder2);
+        vm.expectRevert("Not started.");
+        crowdfund.unpledge(0, 30 * 10**18);
+        vm.stopPrank();
+    }
 
-    function testUnpledgeNotStarted() public {}
+    function testUnpledgeAlreadyEnded() public {
+        testStartOk();
+        vm.warp(block.timestamp + duration + 1);
+        vm.startPrank(funder2);
+        vm.expectRevert("Already ended.");
+        crowdfund.unpledge(0, 30 * 10**18);
+        vm.stopPrank();
+    }
 
-    function testUnpledgeAlreadyEnded() public {}
+    function testUnpledgeNotEnough() public {
+        testPledgeOk();
+        vm.startPrank(funder2);
+        vm.expectRevert("Not enough pledge.");
+        crowdfund.unpledge(0, 40 * 10**18);
+        vm.stopPrank();
+    }
 
-    function testUnpledgeNotEnough() public {}
+    function testUnpledgeOk() public {
+        testPledgeOk();
+        vm.startPrank(funder2);
+        assertEq(token.balanceOf(funder2), 20 * 10**token.decimals());
+        crowdfund.unpledge(0, 30 * 10**18);
+        assertEq(token.balanceOf(funder2), 50 * 10**token.decimals());
+        assertEq(crowdfund.getCampaignPledge(0), 0);
+        assertEq(crowdfund.getCampaignAddressPledge(0, funder2), 0);
+        vm.stopPrank();
+    }
 
-    function testUnpledgeOk() public {}
+    function testClaimNotCreator() public {
+        testStartOk();
+        vm.expectRevert("Only creator.");
+        crowdfund.claim(0);
+    }
 
-    function testClaimNotCreator() public {}
+    function testClaimNotEnded() public {
+        testStartOk();
+        vm.startPrank(creator);
+        vm.expectRevert("Not ended.");
+        crowdfund.claim(0);
+        vm.stopPrank();
+    }
 
-    function testClaimNotEnded() public {}
+    function testClaimGoalNotReached() public {
+        testPledgeOk();
+        vm.warp(block.timestamp + duration + 1);
+        vm.startPrank(creator);
+        vm.expectRevert("Goal was not reached.");
+        crowdfund.claim(0);
+        vm.stopPrank();
+    }
 
-    function testClaimAlreadyClaimed() public {}
+    function testClaimGoalReached() public {
+        testPledgeOk();
 
-    function testClaimGoalNotReached() public {}
+        vm.startPrank(funder3);
+        token.approve(address(crowdfund), 10 * 10**18);
+        assertEq(token.balanceOf(funder3), 50 * 10**token.decimals());
+        crowdfund.pledge(0, 10 * 10**18);
+        assertEq(token.balanceOf(funder3), 40 * 10**token.decimals());
+        assertEq(crowdfund.getCampaignPledge(0), 40 * 10**18);
+        assertEq(crowdfund.getCampaignAddressPledge(0, funder3), 10 * 10**18);
+        vm.stopPrank();
 
-    function testRefundNotEnded() public {}
+        vm.warp(block.timestamp + duration + 1);
 
-    function testRefundNotEnoughPledge() public {}
+        vm.startPrank(creator);
+        assertEq(crowdfund.getCampaignClaimed(0), false);
+        assertEq(
+            token.balanceOf(address(crowdfund)),
+            crowdfund.getCampaignPledge(0)
+        );
+        assertEq(token.balanceOf(creator), 0);
+        crowdfund.claim(0);
+        assertEq(token.balanceOf(address(crowdfund)), 0);
+        assertEq(token.balanceOf(creator), crowdfund.getCampaignPledge(0));
+        assertEq(crowdfund.getCampaignClaimed(0), true);
+        vm.stopPrank();
+    }
 
-    function testRefundOk() public {}
+    function testClaimAlreadyClaimed() public {
+        testClaimGoalReached();
+
+        vm.startPrank(creator);
+        vm.expectRevert("Already claimed.");
+        crowdfund.claim(0);
+        vm.stopPrank();
+    }
+
+    function testRefundNotEnded() public {
+        vm.expectRevert("Not ended.");
+        crowdfund.refund(0);
+    }
+
+    function testRefundNotEnoughPledge() public {
+        testPledgeOk();
+        vm.warp(block.timestamp + duration + 1);
+        vm.expectRevert("Not enough pledge.");
+        crowdfund.refund(0);
+    }
+
+    function testRefundOk() public {
+        testPledgeOk();
+        vm.startPrank(funder2);
+        vm.warp(block.timestamp + duration + 1);
+        assertEq(token.balanceOf(funder2), 20 * 10**token.decimals());
+        crowdfund.refund(0);
+        assertEq(token.balanceOf(funder2), 50 * 10**token.decimals());
+        vm.stopPrank();
+    }
 }
