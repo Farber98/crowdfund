@@ -129,4 +129,37 @@ contract Crowdfund {
 
         emit Refund(_id, msg.sender, bal);
     }
+
+    /* Test getters helpers */
+    function getCampaignCreator(uint256 _id) public view returns (address) {
+        return campaigns[_id].creator;
+    }
+
+    function getCampaignGoal(uint256 _id) public view returns (uint256) {
+        return campaigns[_id].goal;
+    }
+
+    function getCampaignPledge(uint256 _id) public view returns (uint256) {
+        return campaigns[_id].pledged;
+    }
+
+    function getCampaignDuration(uint256 _id) public view returns (uint32) {
+        return campaigns[_id].duration;
+    }
+
+    function getCampaignStartAt(uint256 _id) public view returns (uint32) {
+        return campaigns[_id].startAt;
+    }
+
+    function getCampaignClaimed(uint256 _id) public view returns (bool) {
+        return campaigns[_id].claimed;
+    }
+
+    function getCampaignAddressPledge(uint256 _id, address addr)
+        public
+        view
+        returns (uint256)
+    {
+        return campaignAddressPledge[_id][addr];
+    }
 }

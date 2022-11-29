@@ -2,10 +2,11 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "../src/ERC20Maker.sol";
 import "../src/Crowdfund.sol";
 
-contract ERC20SwapTest is Test {
+contract CrowdfundTest is Test {
     ERC20Maker token;
     Crowdfund crowdfund;
 
@@ -13,6 +14,8 @@ contract ERC20SwapTest is Test {
     address payable founder2 = payable(address(0x2));
     address payable founder3 = payable(address(0x3));
     address payable tokenDeployer = payable(address(0x4));
+    uint256 goal = 90 * 10**18;
+    uint32 duration = 60 seconds;
     string name = "Token";
     string symbol = "TOK";
 
@@ -33,7 +36,11 @@ contract ERC20SwapTest is Test {
         assertEq(token.balanceOf(founder3), 50 * 10**token.decimals());
     }
 
-    function testStartOk() public {}
+    function testStartOk() public {
+        vm.startPrank(creator);
+        crowdfund.start(goal, duration);
+        vm.stopPrank();
+    }
 
     function testPledgeNotStarted() public {}
 
